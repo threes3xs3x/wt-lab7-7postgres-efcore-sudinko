@@ -36,3 +36,10 @@
   "isAvailable": true
 }
 ```
+
+
+## Запуск
+
+```
+dotnet run
+```
