@@ -43,3 +43,12 @@
 ```
 dotnet run
 ```
+
+
+## Ссылки
+
+GitHub:
+https://github.com/threes3xs3x/wt-lab6-6minimalapi-sudinko
+
+Render:
+https://wt-lab6-6minimalapi-sudinko.onrender.com
