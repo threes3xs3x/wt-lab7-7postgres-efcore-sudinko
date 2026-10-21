@@ -17,7 +17,7 @@ app.MapGet("/api/info", () =>
     {
         Application = "Web Technologies",
         Technology = "ASP.NET Core Minimal API",
-        Version = "1.0"
+        Version = "1.1"
     };
 });
 
