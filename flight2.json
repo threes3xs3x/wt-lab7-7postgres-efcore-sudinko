@@ -1,0 +1,7 @@
+{
+  "number": "B2-777",
+  "origin": "Minsk",
+  "destination": "Rome",
+  "price": 500,
+  "isAvailable": false
+}

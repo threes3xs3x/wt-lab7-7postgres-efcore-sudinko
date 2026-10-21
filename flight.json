@@ -1,0 +1,7 @@
+{
+  "number": "B2-606",
+  "origin": "Minsk",
+  "destination": "Paris",
+  "price": 999,
+  "isAvailable": true
+}
