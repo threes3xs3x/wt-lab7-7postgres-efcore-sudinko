@@ -1,8 +1,43 @@
-using wt_lab6_6minimalapi_sudinko.Data;
-using wt_lab6_6minimalapi_sudinko.Models;
+using Microsoft.EntityFrameworkCore;
+using wt_lab7_7postgres_efcore_sudinko.Data;
+using wt_lab7_7postgres_efcore_sudinko.Models;
+
 var builder = WebApplication.CreateBuilder(args);
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection");
+
+var databaseUrl =
+    builder.Configuration["DATABASE_URL"];
+
+if (!string.IsNullOrWhiteSpace(databaseUrl))
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var dbPort = uri.Port > 0 ? uri.Port : 5432;
+
+    connectionString =
+        $"Host={uri.Host};" +
+        $"Port={dbPort};" +
+        $"Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"Username={Uri.UnescapeDataString(userInfo[0])};" +
+        $"Password={Uri.UnescapeDataString(userInfo[1])};" +
+        "SSL Mode=Disable";
+}
+
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
 builder.Services.AddOpenApi();
+
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider
+        .GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -16,30 +51,39 @@ app.MapGet("/api/info", () =>
     return new
     {
         Application = "Web Technologies",
-        Technology = "ASP.NET Core Minimal API",
-        Version = "1.1"
+        Technology = "ASP.NET Core Minimal API + PostgreSQL",
+        Version = "1.0"
     };
 });
 
-app.MapGet("/api/flights", (string? search) =>
+app.MapGet("/api/flights", async (AppDbContext db) =>
 {
-    var flights = FlightStore.Flights.AsEnumerable();
-
-    if (!string.IsNullOrWhiteSpace(search))
-    {
-        flights = flights.Where(x =>
-            x.Destination.Contains(
-                search,
-                StringComparison.OrdinalIgnoreCase));
-    }
-
+    var flights = await db.Flights.ToListAsync();
     return Results.Ok(flights);
 });
 
-app.MapGet("/api/flights/{id}", (int id) =>
+app.MapGet("/api/flights/search", async (
+    string? search,
+    AppDbContext db) =>
 {
-    var flight = FlightStore.Flights
-        .FirstOrDefault(x => x.Id == id);
+    var query = db.Flights.AsQueryable();
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+        query = query.Where(x =>
+            x.Destination.ToLower().Contains(search.ToLower()));
+    }
+
+    var flights = await query.ToListAsync();
+    return Results.Ok(flights);
+});
+
+app.MapGet("/api/flights/{id}", async (
+    int id,
+    AppDbContext db) =>
+{
+    var flight = await db.Flights
+        .FirstOrDefaultAsync(x => x.Id == id);
 
     if (flight == null)
         return Results.NotFound();
@@ -47,25 +91,25 @@ app.MapGet("/api/flights/{id}", (int id) =>
     return Results.Ok(flight);
 });
 
-app.MapPost("/api/flights", (Flight flight) =>
+app.MapPost("/api/flights", async (
+    Flight flight,
+    AppDbContext db) =>
 {
-    if (string.IsNullOrWhiteSpace(flight.Number) || flight.Price <= 0)
-        return Results.BadRequest("Номер рейса не может быть пустым, цена должна быть больше нуля.");
+    db.Flights.Add(flight);
+    await db.SaveChangesAsync();
 
-    var newId = FlightStore.Flights.Count == 0
-        ? 1
-        : FlightStore.Flights.Max(x => x.Id) + 1;
-
-    flight.Id = newId;
-    FlightStore.Flights.Add(flight);
-
-    return Results.Created($"/api/flights/{flight.Id}", flight);
+    return Results.Created(
+        $"/api/flights/{flight.Id}",
+        flight);
 });
 
-app.MapPut("/api/flights/{id}", (int id, Flight updatedFlight) =>
+app.MapPut("/api/flights/{id}", async (
+    int id,
+    Flight updatedFlight,
+    AppDbContext db) =>
 {
-    var flight = FlightStore.Flights
-        .FirstOrDefault(x => x.Id == id);
+    var flight = await db.Flights
+        .FirstOrDefaultAsync(x => x.Id == id);
 
     if (flight == null)
         return Results.NotFound();
@@ -76,19 +120,61 @@ app.MapPut("/api/flights/{id}", (int id, Flight updatedFlight) =>
     flight.Price = updatedFlight.Price;
     flight.IsAvailable = updatedFlight.IsAvailable;
 
+    await db.SaveChangesAsync();
+
     return Results.Ok(flight);
 });
 
-app.MapDelete("/api/flights/{id}", (int id) =>
+app.MapDelete("/api/flights/{id}", async (
+    int id,
+    AppDbContext db) =>
 {
-    var flight = FlightStore.Flights
-        .FirstOrDefault(x => x.Id == id);
+    var flight = await db.Flights
+        .FirstOrDefaultAsync(x => x.Id == id);
 
     if (flight == null)
         return Results.NotFound();
 
-    FlightStore.Flights.Remove(flight);
+    db.Flights.Remove(flight);
+    await db.SaveChangesAsync();
+
     return Results.NoContent();
+});
+
+app.MapGet("/api/flights/expensive", async (AppDbContext db) =>
+{
+    var flights = await db.Flights
+        .Where(x => x.Price > 100)
+        .ToListAsync();
+    return Results.Ok(flights);
+});
+
+app.MapGet("/api/flights/sorted", async (AppDbContext db) =>
+{
+    var flights = await db.Flights
+        .OrderBy(x => x.Price)
+        .ToListAsync();
+    return Results.Ok(flights);
+});
+
+app.MapGet("/api/flights/available", async (AppDbContext db) =>
+{
+    var flights = await db.Flights
+        .Where(x => x.IsAvailable)
+        .OrderBy(x => x.Number)
+        .ToListAsync();
+    return Results.Ok(flights);
+});
+
+app.MapGet("/api/flights/from/{origin}", async (
+    string origin,
+    AppDbContext db) =>
+{
+    var flights = await db.Flights
+        .Where(x => x.Origin == origin)
+        .OrderByDescending(x => x.Price)
+        .ToListAsync();
+    return Results.Ok(flights);
 });
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
