@@ -8,4 +8,4 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 EXPOSE 10000
-ENTRYPOINT ["dotnet", "wt-lab6-6minimalapi-sudinko.dll"]
+ENTRYPOINT ["dotnet", "wt-lab7-7postgres-efcore-sudinko.dll"]
