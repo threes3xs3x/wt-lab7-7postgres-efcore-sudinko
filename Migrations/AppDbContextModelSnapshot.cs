@@ -33,6 +33,10 @@ namespace wt_lab6_6minimalapi_sudinko.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Destination")
                         .IsRequired()
                         .HasColumnType("text");
@@ -60,6 +64,7 @@ namespace wt_lab6_6minimalapi_sudinko.Migrations
                         {
                             Id = 101,
                             CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "",
                             Destination = "Warsaw",
                             IsAvailable = true,
                             Number = "B2-101",
@@ -70,6 +75,7 @@ namespace wt_lab6_6minimalapi_sudinko.Migrations
                         {
                             Id = 102,
                             CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0, 0, DateTimeKind.Utc),
+                            Description = "",
                             Destination = "Vilnius",
                             IsAvailable = true,
                             Number = "B2-202",
